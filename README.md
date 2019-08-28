@@ -1,0 +1,1 @@
+gcloud functions deploy HelloHTTP --runtime go111 --trigger-http 
