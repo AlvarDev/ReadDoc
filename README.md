@@ -1,1 +1,1 @@
-gcloud functions deploy HelloHTTP --runtime go111 --trigger-http 
+gcloud functions deploy ReadDoc --runtime go111 --trigger-http 

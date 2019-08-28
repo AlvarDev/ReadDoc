@@ -3,77 +3,138 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"log"
-	"os"
+	"net/http"
+	"time"
 
 	"cloud.google.com/go/storage"
+	vision "cloud.google.com/go/vision/apiv1"
 )
 
-func main() {
+const maxMemory = 2 * 1024 * 1024 // 2 megabytes.
 
-	ctx := context.Background()
-	// Sets your Google Cloud Platform project ID.
-
-	// Creates a client.
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
+// ReadDoc is an HTTP Cloud Function with a request parameter.
+func ReadDoc(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(maxMemory); err != nil {
+		http.Error(w, "Unable to parse form", http.StatusBadRequest)
+		log.Printf("Error parsing form: %v", err)
+		return
 	}
 
-	// Sets the name for the new bucket.
-	bucket := "alvardevlp07.appspot.com"
+	defer func() {
+		if err := r.MultipartForm.RemoveAll(); err != nil {
+			http.Error(w, "Error cleaning up form files", http.StatusInternalServerError)
+			log.Printf("Error cleaning up form files: %v", err)
+		}
+	}()
 
-	// // Creates a Bucket instance.
-	// it := client.Bucket(bucket).Objects(ctx, nil)
+	for _, headers := range r.MultipartForm.File {
+		for _, h := range headers {
+			file, _ := h.Open()
+			ctx := context.Background()
+			scClient, err := storage.NewClient(ctx)
+			if err != nil {
+				log.Fatalf("Failed to create client: %v", err)
+			}
 
-	// for {
-	// 	attrs, err := it.Next()
-	// 	if err == iterator.Done {
-	// 		break
-	// 	}
-	// 	if err != nil {
-	// 		fmt.Println("No text found.")
-	// 	}
-	// 	fmt.Println(attrs.Name)
-	// }
+			t := time.Now()
 
-	f, err := os.Open("notes.txt")
-	if err != nil {
-		fmt.Println("No text found.")
+			bucket := "alvardevlp07.appspot.com"
+			fileName := t.Format("20060102150405") + "-" + h.Filename
+
+			wc := scClient.Bucket(bucket).Object(fileName).NewWriter(ctx)
+			if _, err = io.Copy(wc, file); err != nil {
+				fmt.Println("Error copying")
+			}
+			if err := wc.Close(); err != nil {
+				fmt.Println("Conexion closed")
+				fmt.Println(err)
+			}
+
+			client, err := vision.NewImageAnnotatorClient(ctx)
+
+			if err != nil {
+				log.Fatalf("Failed to create client: %v", err)
+			}
+			defer client.Close()
+
+			image := vision.NewImageFromURI("gs://alvardevlp07.appspot.com/" + fileName)
+			annotations, err := client.DetectTexts(ctx, image, nil, 10)
+
+			if err != nil {
+				log.Fatalf("Failed to detect text: %v", err)
+			}
+
+			if len(annotations) == 0 {
+				fmt.Fprintf(w, "No text found.")
+			} else {
+				fmt.Fprintf(w, annotations[0].Description)
+			}
+
+		}
 	}
-	defer f.Close()
+}
 
-	wc := client.Bucket(bucket).Object("notes.txt").NewWriter(ctx)
-	if _, err = io.Copy(wc, f); err != nil {
-		fmt.Println("Error copying")
-	}
-	if err := wc.Close(); err != nil {
-		fmt.Println("Conexion closed")
-		fmt.Println(err)
-	}
 
-	// ctx := context.Background()
-	// client, err := vision.NewImageAnnotatorClient(ctx)
 
-	// if err != nil {
-	// 	log.Fatalf("Failed to create client: %v", err)
-	// }
-	// defer client.Close()
+// func main() {
 
-	// image := vision.NewImageFromURI("gs://alvardevlp07.appspot.com/nota.jpg")
-	// annotations, err := client.DetectTexts(ctx, image, nil, 10)
+// 	http.HandleFunc("/upload", uploadImage)
+// 	http.ListenAndServe(":8080", nil)
 
-	// if err != nil {
-	// 	log.Fatalf("Failed to detect labels: %v", err)
-	// }
+// 	/** Context **/
 
-	// if len(annotations) == 0 {
-	// 	fmt.Println("No text found.")
-	// } else {
-	// 	fmt.Println("Text:")
-	// 	fmt.Println(annotations[0].Description)
-	// }
+// 	// ctx := context.Background()
+
+// 	/** Upload to Cloud Storage **/
+
+// 	// scClient, err := storage.NewClient(ctx)
+// 	// if err != nil {
+// 	// 	log.Fatalf("Failed to create client: %v", err)
+// 	// }
+
+// 	// bucket := "alvardevlp07.appspot.com"
+
+// 	// f, err := os.Open("notes.txt")
+// 	// if err != nil {
+// 	// 	fmt.Println("No text found.")
+// 	// }
+// 	// defer f.Close()
+
+// 	// wc := scClient.Bucket(bucket).Object("notes.txt").NewWriter(ctx)
+// 	// if _, err = io.Copy(wc, f); err != nil {
+// 	// 	fmt.Println("Error copying")
+// 	// }
+// 	// if err := wc.Close(); err != nil {
+// 	// 	fmt.Println("Conexion closed")
+// 	// 	fmt.Println(err)
+// 	// }
+
+// 	/** Request to Vision API **/
+
+// 	// client, err := vision.NewImageAnnotatorClient(ctx)
+
+// 	// if err != nil {
+// 	// 	log.Fatalf("Failed to create client: %v", err)
+// 	// }
+// 	// defer client.Close()
+
+// 	// image := vision.NewImageFromURI("gs://alvardevlp07.appspot.com/nota.jpg")
+// 	// annotations, err := client.DetectTexts(ctx, image, nil, 10)
+
+// 	// if err != nil {
+// 	// 	log.Fatalf("Failed to detect text: %v", err)
+// 	// }
+
+// 	// if len(annotations) == 0 {
+// 	// 	fmt.Println("No text found.")
+// 	// } else {
+// 	// 	fmt.Println("Text:")
+// 	// 	fmt.Println(annotations[0].Description)
+// 	// }
 
 }
