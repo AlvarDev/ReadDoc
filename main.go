@@ -3,9 +3,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"html"
 	"io"
 	"log"
 	"net/http"
@@ -18,7 +16,7 @@ import (
 const maxMemory = 2 * 1024 * 1024 // 2 megabytes.
 
 // ReadDoc is an HTTP Cloud Function with a request parameter.
-func ReadDoc(w http.ResponseWriter, r *http.Request) {
+func uploadImage(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(maxMemory); err != nil {
 		http.Error(w, "Unable to parse form", http.StatusBadRequest)
 		log.Printf("Error parsing form: %v", err)
@@ -79,62 +77,9 @@ func ReadDoc(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func main() {
 
-
-// func main() {
-
-// 	http.HandleFunc("/upload", uploadImage)
-// 	http.ListenAndServe(":8080", nil)
-
-// 	/** Context **/
-
-// 	// ctx := context.Background()
-
-// 	/** Upload to Cloud Storage **/
-
-// 	// scClient, err := storage.NewClient(ctx)
-// 	// if err != nil {
-// 	// 	log.Fatalf("Failed to create client: %v", err)
-// 	// }
-
-// 	// bucket := "alvardevlp07.appspot.com"
-
-// 	// f, err := os.Open("notes.txt")
-// 	// if err != nil {
-// 	// 	fmt.Println("No text found.")
-// 	// }
-// 	// defer f.Close()
-
-// 	// wc := scClient.Bucket(bucket).Object("notes.txt").NewWriter(ctx)
-// 	// if _, err = io.Copy(wc, f); err != nil {
-// 	// 	fmt.Println("Error copying")
-// 	// }
-// 	// if err := wc.Close(); err != nil {
-// 	// 	fmt.Println("Conexion closed")
-// 	// 	fmt.Println(err)
-// 	// }
-
-// 	/** Request to Vision API **/
-
-// 	// client, err := vision.NewImageAnnotatorClient(ctx)
-
-// 	// if err != nil {
-// 	// 	log.Fatalf("Failed to create client: %v", err)
-// 	// }
-// 	// defer client.Close()
-
-// 	// image := vision.NewImageFromURI("gs://alvardevlp07.appspot.com/nota.jpg")
-// 	// annotations, err := client.DetectTexts(ctx, image, nil, 10)
-
-// 	// if err != nil {
-// 	// 	log.Fatalf("Failed to detect text: %v", err)
-// 	// }
-
-// 	// if len(annotations) == 0 {
-// 	// 	fmt.Println("No text found.")
-// 	// } else {
-// 	// 	fmt.Println("Text:")
-// 	// 	fmt.Println(annotations[0].Description)
-// 	// }
+	http.HandleFunc("/upload", uploadImage)
+	http.ListenAndServe(":8080", nil)
 
 }
