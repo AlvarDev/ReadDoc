@@ -1,2 +1,7 @@
 readdoc
 readdoc-service-account.json
+
+*.exe
+*.mod
+*.sum
+credential.json
